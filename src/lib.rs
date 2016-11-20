@@ -69,6 +69,21 @@ pub trait Observer {
     fn handle(&self, item: Self::Item) -> Option<Self::Item>;
 }
 
+impl<T> Observer for Box<Fn(T) -> Option<T>> {
+    type Item = T;
+
+    fn handle(&self, item: Self::Item) -> Option<Self::Item> {
+        // FIXME
+        Some(item)
+    }
+}
+
+pub fn box_obs<T, F>(f: F) -> Rc<Box<Fn(T) -> Option<T>>>
+    where F: Fn(T) -> Option<T> + 'static
+{
+    Rc::new(Box::new(f))
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -142,5 +157,13 @@ mod tests {
         assert!(w_1.found.get());
         assert!(w_7.found.get());
         assert!(w_99.found.get());
+    }
+
+    fn closure_observer() {
+        let mut mp: Multiplexer<Num> = Multiplexer::new();
+
+        let my_number = 5;
+        mp.register(Rc::new(Box::new(|n| None) as Box<Fn(Num) -> Option<Num>>));
+        mp.register(box_obs(|n| None))
     }
 }
