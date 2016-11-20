@@ -73,20 +73,21 @@ pub trait Observer {
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
+    use std::cell::Cell;
     use super::*;
 
     struct Num(pub u32);
 
     struct NumWaiter {
         pub n: u32,
-        pub found: bool,
+        pub found: Cell<bool>,
     }
 
     impl NumWaiter {
         fn new(n: u32) -> NumWaiter {
             NumWaiter {
                 n: n,
-                found: false,
+                found: Cell::new(false),
             }
         }
     }
@@ -98,6 +99,8 @@ mod tests {
             if self.n != item.0 {
                 Some(item)
             } else {
+                self.found.set(true);
+
                 // consume if number matches
                 None
             }
@@ -110,10 +113,34 @@ mod tests {
 
         let w_1 = Rc::new(NumWaiter::new(1));
         let w_7 = Rc::new(NumWaiter::new(7));
-        let w_99 = Rc::new(NumWaiter::new(9));
+        let w_99 = Rc::new(NumWaiter::new(99));
 
         mp.register(w_1.clone());
         mp.register(w_7.clone());
         mp.register(w_99.clone());
+
+        assert!(!w_1.found.get());
+        assert!(!w_7.found.get());
+        assert!(!w_99.found.get());
+
+        mp.distribute(Num(3));
+        mp.distribute(Num(4));
+
+        assert!(!w_1.found.get());
+        assert!(!w_7.found.get());
+        assert!(!w_99.found.get());
+
+        mp.distribute(Num(7));
+
+        assert!(!w_1.found.get());
+        assert!(w_7.found.get());
+        assert!(!w_99.found.get());
+
+        mp.distribute(Num(1));
+        mp.distribute(Num(99));
+
+        assert!(w_1.found.get());
+        assert!(w_7.found.get());
+        assert!(w_99.found.get());
     }
 }
