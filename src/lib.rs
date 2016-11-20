@@ -1,51 +1,57 @@
-use std::marker::PhantomData;
 use std::rc::Weak;
 
 
-pub struct WeakVec<T>(Vec<Weak<T>>);
+pub struct WeakVec<T: ?Sized>(Vec<Weak<T>>);
 
-impl<T> WeakVec<T> {
+
+impl<T: ?Sized> WeakVec<T> {
+    #[inline]
     pub fn new(v: Vec<Weak<T>>) -> WeakVec<T> {
         WeakVec(v)
     }
 
+    #[inline]
     pub fn get_mut(&mut self) -> &mut Vec<Weak<T>> {
         &mut self.0
     }
 
-    pub fn get(&mut self) -> &Vec<Weak<T>> {
+    #[inline]
+    pub fn get(&self) -> &Vec<Weak<T>> {
         &self.0
     }
 
-    pub fn cleanup(&mut self) {
+    #[inline]
+    pub fn gc(&mut self) {
         // retain only weak references that still point somewhere
         self.0.retain(|weak| weak.upgrade().is_some())
+    }
+
+    #[inline]
+    pub fn push(&mut self, weak: Weak<T>) {
+        // FIXME: optimization possible: use first empty slot
+
+        self.get_mut().push(weak);
+        self.gc();
     }
 }
 
 
 
 pub struct Multiplexer<T> {
-    listeners: Vec<Weak<Observer<Item = T>>>,
-    _item: PhantomData<T>,
+    listeners: WeakVec<Observer<Item = T>>,
 }
 
 impl<T> Multiplexer<T> {
     pub fn new() -> Multiplexer<T> {
-        Multiplexer {
-            listeners: Vec::new(),
-            _item: PhantomData,
-        }
+        Multiplexer { listeners: WeakVec::new(Vec::new()) }
     }
 
     pub fn register(&mut self, listener: Weak<Observer<Item = T>>) {
-        // FIXME: gc. could put this in an extra structure
-        // FIXME: optimization possible: use first empty slot
         self.listeners.push(listener);
     }
 
     pub fn distribute(&self, mut item: T) -> Option<T> {
-        for lref in self.listeners.iter().filter_map(|l| l.upgrade()) {
+        for lref in self.listeners.get().iter().filter_map(|l| l.upgrade()) {
             // pass item to every listener until one consumes it
             item = if let Some(nitem) = lref.handle(item) {
                 nitem
