@@ -35,8 +35,6 @@ impl<T: ?Sized> WeakVec<T> {
     }
 }
 
-
-
 pub struct Multiplexer<T> {
     listeners: WeakVec<Observer<Item = T>>,
 }
