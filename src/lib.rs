@@ -1,6 +1,29 @@
 use std::marker::PhantomData;
-
 use std::rc::Weak;
+
+
+pub struct WeakVec<T>(Vec<Weak<T>>);
+
+impl<T> WeakVec<T> {
+    pub fn new(v: Vec<Weak<T>>) -> WeakVec<T> {
+        WeakVec(v)
+    }
+
+    pub fn get_mut(&mut self) -> &mut Vec<Weak<T>> {
+        &mut self.0
+    }
+
+    pub fn get(&mut self) -> &Vec<Weak<T>> {
+        &self.0
+    }
+
+    pub fn cleanup(&mut self) {
+        // retain only weak references that still point somewhere
+        self.0.retain(|weak| weak.upgrade().is_some())
+    }
+}
+
+
 
 pub struct Multiplexer<T> {
     listeners: Vec<Weak<Observer<Item = T>>>,
